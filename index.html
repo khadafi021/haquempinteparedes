@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        
+        body.dark-mode {
+            background-color: #222222;
+            color: #ffffff;
+        }
+        
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .container.dark-mode {
+            background-color: #333333;
+            color: #ffffff;
+        }
+        
+        h1 {
+            text-align: center;
+        }
+        
+        #upload-input {
+            display: block;
+            margin-bottom: 20px;
+        }
+        
+        #mask-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            width: 100%;
+            height: auto;
+        }
+        
+        #mask-image {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+        }
+        
+        #result-canvas {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+        }
+        
+        #generate-button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        
+        #dark-mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: transparent;
+            color: inherit;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+
+    <!-- Add Font Awesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta2/css/all.min.css">
+</head>
+
+<body class="dark-mode">
+    <div class="container dark-mode">
+        <h1>Há quem pinte paredes...</h1>
+        <input type="file" id="upload-input">
+        <div id="mask-container">
+            <img src="vicente.png" id="mask-image">
+            <canvas id="result-canvas"></canvas>
+        </div>
+        <button id="generate-button">Download</button>
+        <p id="status-text"></p>
+    </div>
+
+    <button id="dark-mode-toggle" onclick="toggleDarkMode()">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <script>
+        var imageLoaded = false; // Flag to track if an image has been loaded
+        var canvasUpdated = false; // Flag to track if the canvas has been updated
+        var darkModeEnabled = true; // Flag to track if dark mode is enabled
+
+        function toggleDarkMode() {
+            var body = document.body;
+            var container = document.querySelector('.container');
+            body.classList.toggle("dark-mode");
+            container.classList.toggle("dark-mode");
+            darkModeEnabled = !darkModeEnabled;
+            updateDarkModeToggleIcon();
+        }
+
+        function updateDarkModeToggleIcon() {
+            var toggleButton = document.getElementById("dark-mode-toggle");
+            toggleButton.innerHTML = darkModeEnabled ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        }
+
+        document.getElementById("generate-button").addEventListener("click", function() {
+            if (imageLoaded && canvasUpdated) {
+                var resultCanvas = document.getElementById("result-canvas");
+                resultCanvas.toBlob(function(blob) {
+                    var url = URL.createObjectURL(blob);
+                    var link = document.createElement("a");
+                    link.href = url;
+                    link.download = "result.png";
+                    link.click();
+                });
+            }
+        });
+
+        document.getElementById("upload-input").addEventListener("change", function(event) {
+            var file = event.target.files[0];
+            var img = new Image();
+
+            img.onload = function() {
+                var maskImage = document.getElementById("mask-image");
+                var resultCanvas = document.getElementById("result-canvas");
+                var container = document.querySelector(".container");
+                var desiredWidth = 2000; // Desired width of the resulting image
+                var desiredHeight = 2000; // Desired height of the resulting image
+
+                var aspectRatio = img.width / img.height;
+                var imageWidth, imageHeight;
+                var scaleFactor;
+
+                var boxX = 50; // Specify the X position of the box
+                var boxY = 130; // Specify the Y position of the box
+                var boxWidth = 370; // Specify the width of the box
+                var boxHeight = 300; // Specify the height of the box
+
+                if (aspectRatio > 1) {
+                    // Landscape image
+                    scaleFactor = Math.min(boxWidth / img.width, boxHeight / img.height);
+                } else {
+                    // Portrait or square image
+                    scaleFactor = Math.min(boxHeight / img.height, boxWidth / img.width);
+                }
+
+                imageWidth = img.width * scaleFactor;
+                imageHeight = img.height * scaleFactor;
+
+                var imageX = boxX + (boxWidth - imageWidth) / 2;
+                var imageY = boxY + (boxHeight - imageHeight) / 2;
+
+                var canvas = document.createElement("canvas");
+                var ctx = canvas.getContext("2d");
+                var maskWidth = maskImage.clientWidth;
+                var maskHeight = maskImage.clientHeight;
+
+                canvas.width = maskWidth;
+                canvas.height = maskHeight;
+
+                ctx.drawImage(maskImage, 0, 0, maskWidth, maskHeight);
+                ctx.drawImage(img, imageX, imageY, imageWidth, imageHeight);
+
+                resultCanvas.width = desiredWidth;
+                resultCanvas.height = desiredHeight;
+                resultCanvas.style.borderRadius = "10px"; // Add rounded corners
+                resultCanvas.getContext("2d").drawImage(canvas, 0, 0, desiredWidth, desiredHeight);
+
+                // Hide the mask image
+                maskImage.style.display = "none";
+
+                // Show the result canvas
+                resultCanvas.style.display = "block";
+
+                // Set the imageLoaded and canvasUpdated flags to true
+                imageLoaded = true;
+                canvasUpdated = true;
+
+                // Enable the "Download" button
+                document.getElementById("generate-button").disabled = false;
+
+                // Adjust container height to fit the result canvas
+                container.style.height = `${resultCanvas.offsetHeight + 150}px`;
+            };
+
+            img.src = URL.createObjectURL(file);
+        });
+    </script>
+
+</body>
+
+</html>
